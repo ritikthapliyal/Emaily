@@ -7,9 +7,15 @@ const GitHubStrategy = require('passport-github2').Strategy
 
 const router = express.Router()
 
-passport.serializeUser((user,done)=>(
-    done(null,user.uid)
-))
+passport.serializeUser((user,done)=>{
+    console.log(user.id)
+    done(null,user.id)
+})
+
+passport.deserializeUser( async (id,done)=>{
+    const user = await User.findById(id)
+    done(null,user)
+})
 
 passport.use(new GoogleStrategy({
     clientID : keys.googleClientId,
@@ -28,7 +34,7 @@ passport.use(new GoogleStrategy({
         done(null,user)
 
     }catch(err){
-
+        console.log(err)
     }
   
 }))
@@ -38,8 +44,21 @@ passport.use(new GitHubStrategy({
     clientID : keys.githubClientId,
     clientSecret : keys.githubClientSecret,
     callbackURL: '/auth/github/callback'
-},(accessToken,refreshToken,profile,done)=>{
+},async (accessToken,refreshToken,profile,done)=>{
+    
+    try{
 
+        let user = await User.findOne({uid : profile.id})
+    
+        if(!user){
+            user = User.create({uid : profile.id})
+        }
+
+        done(null,user)
+
+    }catch(err){
+        console.log(err)
+    }
 }))
 
 
@@ -48,9 +67,9 @@ passport.use(new GitHubStrategy({
 router.get('/google',passport.authenticate('google',{
     scope : ['profile', 'email']
 }))
-router.get('/google/callback',passport.authenticate('google',{
-    scope : ['profile', 'email']
-}))
+router.get('/google/callback',passport.authenticate('google'),(req,res)=>{
+    res.redirect('/api/curr_user')
+})
 
 
 
@@ -58,8 +77,8 @@ router.get('/google/callback',passport.authenticate('google',{
 router.get('/github',passport.authenticate('github',{
     scope : ['profile', 'email']
 }))
-router.get('/github/callback',passport.authenticate('github',{
-    scope : ['profile', 'email']
-}))
+router.get('/github/callback',passport.authenticate('github'),(req,res)=>{
+    res.redirect('/api/curr_user')
+})
 
 module.exports = router
